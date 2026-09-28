@@ -1,0 +1,27 @@
+{
+  "name": "pi-prompt-cache-status",
+  "version": "0.1.0",
+  "description": "Cross-provider cache-usage observations and an inactivity reminder for pi, without replacing its footer.",
+  "license": "MIT",
+  "author": "Michael Brunner",
+  "type": "module",
+  "engines": { "node": ">=22.19.0" },
+  "keywords": ["pi-package", "pi", "codex", "prompt-cache"],
+  "files": ["index.ts", "prompt-cache-status.ts", "README.md", "LICENSE", "docs/ai/design.md"],
+  "pi": { "extensions": ["./index.ts"] },
+  "scripts": {
+    "test": "node --test *.test.ts",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "0.86.1",
+    "@earendil-works/pi-coding-agent": "0.86.1",
+    "@types/node": "^22.19.0",
+    "typescript": "~5.9.3"
+  }
+}
