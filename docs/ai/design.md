@@ -43,6 +43,6 @@ Before release:
 - Exercise restoration, tree navigation, model switching, both timer thresholds/expiry/replacement, and idempotent cleanup.
 - Confirm TUI/RPC use status APIs only and print/JSON modes stay silent.
 - Inspect `npm pack --dry-run`: only runtime sources, manifest, README, license, and design notes should be shipped; never backups or test fixtures.
-- Manually smoke-test with Pi 0.86.1+ in a disposable profile if changing host integration. Do not make a live model request without authorization.
+- Manually smoke-test with Pi 0.87.1+ in a disposable profile if changing host integration. Do not make a live model request without authorization.
 
 Core pi packages are peer dependencies supplied by the host; pinned development dependencies make typechecking reproducible. The package manifest explicitly selects `index.ts`, so tests and helper modules cannot be auto-loaded as extensions.

@@ -6,7 +6,7 @@ It does not keep a cache alive or predict whether your next request will hit one
 
 ## Install
 
-Requires **Pi 0.86.1+**; development dependencies pin **0.86.1**. Newer versions are intended targets, not a guarantee against upstream API changes. Local development requires **Node.js 22.19.0 or newer**. All providers and models are tracked through pi's normalized usage fields, including Codex, OpenAI, Anthropic, Google, OpenRouter, and custom providers. No allowlist is required.
+Requires **Pi 0.87.1+**; development dependencies pin **0.87.1**. Newer versions are intended targets, not a guarantee against upstream API changes. Local development requires **Node.js 22.19.0 or newer**. All providers and models are tracked through pi's normalized usage fields, including Codex, OpenAI, Anthropic, Google, OpenRouter, and custom providers. No allowlist is required.
 
 From a local checkout:
 
