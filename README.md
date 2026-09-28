@@ -28,7 +28,11 @@ Remove a local installation with:
 pi remove /absolute/path/to/pi-prompt-cache-status
 ```
 
-A published Git checkout can also be installed with `pi install https://github.com/OWNER/REPOSITORY` (replace the placeholders with its actual location). This project does not require an npm release.
+Or install directly from GitHub:
+
+```sh
+pi install git:github.com/shardrunner/pi-prompt-cache-status
+```
 
 ## What it shows
 
