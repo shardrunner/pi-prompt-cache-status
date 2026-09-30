@@ -30,6 +30,13 @@ const model = {
 	maxTokens: 10_000,
 } satisfies Model<"openai-codex-responses">;
 
+const virtualModel = {
+	...model,
+	provider: "router",
+	id: "auto",
+	api: "pi-virtual",
+} satisfies Model<"pi-virtual">;
+
 const providerCases = [
 	{ provider: "anthropic", modelId: "claude-test" },
 	{ provider: "google", modelId: "gemini-test" },
@@ -310,6 +317,108 @@ test("the same model id remains isolated by provider for live and restored obser
 	h.state.model = openaiModel;
 	await h.emit({ type: "model_select", model: openaiModel, previousModel: anthropicModel, source: "set" });
 	assert.equal(h.status(), "Prompt cache: last request 14:03; cached 40.0%");
+});
+
+test("virtual selections follow physical responses without mixing pairs or claiming router attribution", async (t) => {
+	const h = harness(t);
+	h.state.model = virtualModel;
+	await h.emit(start);
+	assert.equal(h.status(), "Prompt cache: no observations");
+	const first = message();
+	await h.emit({ type: "message_end", message: first });
+	assert.equal(h.status(), "Prompt cache: last request 14:03; cached 40.0%; latest physical response on branch: openai-codex/test-codex");
+	const second = message({ provider: "anthropic", model: "shared-model", usage: { ...first.usage, input: 800, cacheRead: 200 } });
+	// Equal timestamps use branch/event order; routing need not emit model_select.
+	await h.emit({ type: "message_end", message: second });
+	assert.equal(h.status(), "Prompt cache: last request 14:03; cached 20.0%; latest physical response on branch: anthropic/shared-model");
+	const observed = h.status();
+	for (const ignored of [
+		message({ stopReason: "error", provider: virtualModel.provider, model: virtualModel.id, api: virtualModel.api }),
+		message({ stopReason: "aborted" }),
+		message({ timestamp: NOW + 1 }),
+		message({ usage: { ...first.usage, input: -1 } }),
+		message({ timestamp: NOW - 1, provider: "google", model: "older-model" }),
+		// Even a malformed successful virtual message is not physical evidence.
+		message({ provider: virtualModel.provider, model: virtualModel.id, api: virtualModel.api }),
+	]) {
+		await h.emit({ type: "message_end", message: ignored });
+		assert.equal(h.status(), observed);
+	}
+	const otherRouter = { ...virtualModel, id: "other-router" };
+	h.state.model = otherRouter;
+	await h.emit({ type: "model_select", model: otherRouter, previousModel: virtualModel, source: "set" });
+	assert.equal(h.status(), observed, "branch history is not attributed to the newly selected router");
+	h.state.model = model;
+	await h.emit({ type: "model_select", model, previousModel: otherRouter, source: "restore" });
+	assert.equal(h.status(), "Prompt cache: last request 14:03; cached 40.0%", "physical fallback retains pair-scoped display");
+	const samePairPhysical = makeModel(virtualModel.provider, virtualModel.id);
+	h.state.model = samePairPhysical;
+	await h.emit({ type: "model_select", model: samePairPhysical, previousModel: model, source: "set" });
+	assert.equal(h.status(), "Prompt cache: no observations", "physical usage must never be stored under a virtual pair");
+});
+
+test("virtual selection restores branch identity before router selection and discards abandoned responses", async (t) => {
+	const h = harness(t);
+	h.state.model = virtualModel;
+	const first = message({ timestamp: NOW - 60_000 });
+	const second = message({ provider: "google", model: "gemini-test" });
+	const selection: SessionEntry = {
+		type: "model_change", id: "selection", parentId: "0", timestamp: new Date(NOW).toISOString(),
+		provider: virtualModel.provider, modelId: virtualModel.id,
+	};
+	h.setBranch([...entries(first), selection]);
+	await h.emit(start);
+	assert.match(h.status() ?? "", /last request 14:02; cached 40\.0%; latest physical response on branch: openai-codex\/test-codex$/);
+	h.setBranch(entries(first, second, message({ stopReason: "error" })));
+	await h.emit({ type: "session_start", reason: "reload" });
+	assert.match(h.status() ?? "", /latest physical response on branch: google\/gemini-test$/);
+	const restored = h.status();
+	await h.emit({ type: "message_end", message: second });
+	assert.equal(h.status(), restored, "live and restored identity agree");
+	h.setBranch(entries(first));
+	await h.emit(tree);
+	assert.match(h.status() ?? "", /latest physical response on branch: openai-codex\/test-codex$/);
+	// A summary's usage is not a response from the abandoned branch.
+	h.setBranch([{
+		type: "branch_summary", id: "summary", parentId: null, timestamp: new Date(NOW).toISOString(),
+		fromId: "abandoned", summary: "Earlier work", usage: second.usage,
+	}]);
+	await h.emit(tree);
+	assert.equal(h.status(), "Prompt cache: no observations");
+	const updates = h.statusUpdates();
+	t.mock.timers.tick(INACTIVITY_THRESHOLD_MS);
+	assert.equal(h.statusUpdates(), updates, "leaving the observed branch cancels its deadline");
+	await h.emit({ type: "message_end", message: message({ timestamp: Date.now() }) });
+	await h.emit({ type: "session_shutdown", reason: "new" });
+	h.setBranch([]);
+	await h.emit({ type: "session_start", reason: "new" });
+	assert.equal(h.status(), "Prompt cache: no observations", "replacement clears physical identity too");
+});
+
+test("virtual reminder uses the latest physical policy and cleans up replaced deadlines", async (t) => {
+	const h = harness(t);
+	h.state.model = virtualModel;
+	await h.emit(start);
+	const muse = message({ provider: "openrouter", model: "meta/muse-spark-1.3-contributor" });
+	await h.emit({ type: "message_end", message: muse });
+	t.mock.timers.tick(60_000);
+	await h.emit({ type: "message_end", message: message({ timestamp: Date.now() }) });
+	const updates = h.statusUpdates();
+	t.mock.timers.tick(4 * 60_000);
+	assert.equal(h.statusUpdates(), updates, "the previous physical model's five-minute timer is canceled");
+	t.mock.timers.tick(26 * 60_000);
+	assert.match(h.status() ?? "", /inactive 30m\+ \(heuristic\); latest physical response on branch: openai-codex\/test-codex$/);
+	await h.emit({ type: "message_end", message: { ...muse, timestamp: Date.now() } });
+	t.mock.timers.tick(5 * 60_000 - 1);
+	assert.doesNotMatch(h.status() ?? "", /inactive/);
+	t.mock.timers.tick(1);
+	assert.match(h.status() ?? "", /inactive 5m\+ \(reported TTL\); latest physical response on branch: openrouter\/meta\/muse-spark-1\.3-contributor$/);
+	await h.emit({ type: "message_end", message: { ...muse, timestamp: Date.now() } });
+	await h.emit({ type: "session_shutdown", reason: "reload" });
+	assert.equal(h.status(), undefined);
+	const afterShutdown = h.statusUpdates();
+	t.mock.timers.tick(INACTIVITY_THRESHOLD_MS);
+	assert.equal(h.statusUpdates(), afterShutdown);
 });
 
 test("Muse Spark status expires at five minutes and switching models reschedules the timer", async (t) => {

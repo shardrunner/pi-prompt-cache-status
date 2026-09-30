@@ -6,7 +6,7 @@ It does not keep a cache alive or predict whether your next request will hit one
 
 ## Install
 
-Requires **Pi 0.87.1+**; development dependencies pin **0.87.1**. Newer versions are intended targets, not a guarantee against upstream API changes. Local development requires **Node.js 22.19.0 or newer**. All providers and models are tracked through pi's normalized usage fields, including Codex, OpenAI, Anthropic, Google, OpenRouter, and custom providers. No allowlist is required.
+Requires **Pi 0.99.0+**; development dependencies pin **0.99.0**. Newer versions are intended targets, not a guarantee against upstream API changes. Local development requires **Node.js 22.19.0 or newer**. All providers and models are tracked through pi's normalized usage fields, including Codex, OpenAI, Anthropic, Google, OpenRouter, and custom providers. No allowlist is required.
 
 From a local checkout:
 
@@ -38,8 +38,9 @@ pi install git:github.com/shardrunner/pi-prompt-cache-status
 
 | Example | Meaning |
 | --- | --- |
-| `Prompt cache: no observations` | No qualifying response for this model on the active session branch. **Not** proof of a cold cache. |
+| `Prompt cache: no observations` | No qualifying response for the selected physical model, or no qualifying physical response on the branch under a virtual selection. **Not** proof of a cold cache. |
 | `Prompt cache: last request 14:03; cached 40.0%` | The latest qualifying request's timestamp in local time and the proportion of its prompt tokens reported as cache reads. |
+| `…; latest physical response on branch: anthropic/claude-test` | Under a virtual selection, the physical provider/model whose qualifying response is displayed. Branch history, **not** a prediction or attribution to the selected router. |
 | `…; inactive 30m+ (heuristic)` | That request's timestamp is at least 30 minutes old. This is a reminder, **not** a provider TTL or proof of eviction. |
 | `…; inactive 5m+ (reported TTL)` | For `openrouter/meta/muse-spark-1.3-contributor` only: at least five minutes have passed since the observed request timestamp. The model's reported cache TTL is five minutes; this does **not** prove eviction or predict a cache miss. |
 
@@ -60,7 +61,8 @@ Some adapters normalize absent cache metrics to zero. Thus `cached 0.0%` means z
 - Only finalized assistant responses from any provider ending in `stop`, `length`, or `toolUse` qualify. Errors, cancellations, partial responses, and zero-prompt-token responses do not replace the last observation.
 - Invalid token counts and invalid/future timestamps are ignored. If the local clock moves backward, elapsed time is clamped to zero.
 - The timestamp is the assistant message's **request timestamp**, not a measured completion time. A long-running request can therefore reach the inactivity threshold sooner after completion.
-- Observations are scoped to the **selected provider/model pair and active session branch**. Startup, reload, session replacement, and `/tree` navigation reconstruct that history consistently. Activity in other sessions, branches, accounts, or processes is not tracked.
+- Observations are stored by **physical provider/model pair on the active session branch**. A physical selection shows only its own pair. A virtual selection shows the latest qualifying physical response on that branch, explicitly labeled with its provider/model; caches are never merged under the virtual pair. Latest means newest request timestamp, with branch/event order breaking ties.
+- That physical response may predate selecting the current router, or have come from another router. It is **not attributed to the current router** and says nothing about its next choice. Failed routing does not replace it. Startup, reload, session replacement, and `/tree` navigation reconstruct branch history consistently; abandoned branches and other sessions, accounts, or processes are not tracked.
 - HTTP response headers are not evidence of successful completion. Listening to finalized messages supports both HTTP and WebSocket transports.
 - Tool-result usage and summary usage are not treated as ordinary prompt-cache observations.
 - The last observed hit rate says nothing definitive about the next request. Prompt-prefix changes, routing, retention policy, and compaction can all affect reuse.
@@ -75,7 +77,7 @@ The extension uses only a namespaced `setStatus()` entry. It never calls `setFoo
 - **RPC:** pi forwards status calls as `extension_ui_request` events; actual display depends on the client.
 - **Print/JSON:** no UI calls or inactivity timers.
 
-Only one inactivity timer is active, and only for a selected model with a recent observation. It is replaced when needed, unreferenced so it cannot keep Node alive, and cleared on shutdown. There is no polling.
+Only one inactivity timer is active, and only for a displayed model with a recent observation. Under a virtual selection, the displayed physical pair determines the reminder policy and deadline. It is replaced when needed, unreferenced so it cannot keep Node alive, and cleared on shutdown. There is no polling.
 
 ## Privacy and permissions
 
@@ -88,7 +90,7 @@ npm ci --ignore-scripts
 npm run check
 ```
 
-`check` runs strict TypeScript checking and the Node.js test suite. Tests use typed pi fixtures and a fake clock; no provider credentials or live model calls are required. CI runs on Node 22.19.0, 24, and 26.
+`check` runs strict TypeScript checking and the Node.js test suite. Tests use typed Pi 0.99.0 fixtures and a fake clock, including virtual routing, branch identity, and physical reminder deadlines; no provider credentials or live model calls are required. CI runs on Node 22.19.0, 24, and 26.
 
 - `index.ts`: lifecycle, branch restoration, status updates, timer cleanup.
 - `prompt-cache-status.ts`: evidence validation, percentage calculation, and plain-text formatting.
