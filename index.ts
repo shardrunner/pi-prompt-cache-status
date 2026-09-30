@@ -22,7 +22,7 @@ function isVirtualIdentity(identity: { api: string }): boolean {
 
 export default function promptCacheStatus(pi: ExtensionAPI): void {
 	const observations = new Map<string, CacheObservation>();
-	let latestPhysical: { provider: string; model: string; timestamp: number } | undefined;
+	let latestPhysical: { provider: string; model: string; observation: CacheObservation } | undefined;
 	let inactivityTimer: ReturnType<typeof setTimeout> | undefined;
 
 	function clearTimer(): void {
@@ -43,8 +43,8 @@ export default function promptCacheStatus(pi: ExtensionAPI): void {
 		observations.set(key, observation);
 		// Track branch history, not a router's previous or next dispatch. Equal
 		// request timestamps follow branch/event order, as pair observations do.
-		if (!latestPhysical || latestPhysical.timestamp <= observation.timestamp) {
-			latestPhysical = { provider, model, timestamp: observation.timestamp };
+		if (!latestPhysical || latestPhysical.observation.timestamp <= observation.timestamp) {
+			latestPhysical = { provider, model, observation };
 		}
 		return true;
 	}
@@ -68,17 +68,21 @@ export default function promptCacheStatus(pi: ExtensionAPI): void {
 		}
 
 		const virtual = isVirtualIdentity(ctx.model);
-		const identity = virtual ? latestPhysical : { provider: ctx.model.provider, model: ctx.model.id };
-		const observation = identity ? observations.get(observationKey(identity.provider, identity.model)) : undefined;
-		const policy = identity ? getInactivityPolicy(identity.provider, identity.model) : undefined;
+		const displayed = virtual ? latestPhysical : {
+			provider: ctx.model.provider,
+			model: ctx.model.id,
+			observation: observations.get(observationKey(ctx.model.provider, ctx.model.id)),
+		};
+		const observation = displayed?.observation;
+		const policy = displayed ? getInactivityPolicy(displayed.provider, displayed.model) : undefined;
 		const now = Date.now();
 		// Plain text lets pi own layout, clipping and theme changes. Never take
 		// ownership of the global footer just to display this extension's status.
 		const status = formatCacheStatus(observation, now, policy);
 		ctx.ui.setStatus(
 			STATUS_KEY,
-			virtual && identity
-				? `${status}; latest physical response on branch: ${identity.provider}/${identity.model}`
+			virtual && displayed
+				? `${status}; latest physical response on branch: ${displayed.provider}/${displayed.model}`
 				: status,
 		);
 		const delay = millisecondsUntilInactive(observation, now, policy);
