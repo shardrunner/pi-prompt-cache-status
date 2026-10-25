@@ -1,5 +1,7 @@
 # pi-prompt-cache-status
 
+> **Disclaimer:** This extension is vibe coded. Use at your own risk.
+
 A small, opinionated [pi](https://github.com/earendil-works/pi-mono) extension that shows **observed prompt-cache usage across providers** and an **inactivity reminder** (5 minutes for Muse Spark 1.3, otherwise 30 minutes). It leaves pi's footer, token totals, costs, and other extensions alone.
 
 It does not keep a cache alive or predict whether your next request will hit one.
