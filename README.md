@@ -1,5 +1,7 @@
 # pi-prompt-cache-status
 
+> **Disclaimer:** This extension is vibe coded for personal use. Use at your own risk.
+
 See the **prompt-cache usage [pi](https://pi.dev) actually reports**, across
 providers, without replacing its footer or changing requests. Displays the last
 observed cache-read percentage and an **inactivity reminder** (5 minutes for Muse
@@ -86,11 +88,6 @@ Only one inactivity timer is active, and only for a displayed model with a recen
 ## Privacy and permissions
 
 The extension reads the active session branch in memory and displays usage metadata. It does not read credentials, make network requests, run shell commands, write files, send telemetry, or modify prompts. Like all pi extensions, it nevertheless runs with pi's full process permissions; review the source before installing it.
-
-## Project status
-
-Developed with AI assistance for personal use. Provided as-is, without support or
-compatibility guarantees. Review the source and documented limitations before use.
 
 ## Development
 
