@@ -50,6 +50,7 @@ The status line updates automatically:
 | `…; latest physical response on branch: anthropic/claude-test` | Under a virtual model: the actual provider and model whose response is shown. This is past branch history, **not** a prediction.         |
 | `…; inactive 30m+ (heuristic)`                                 | At least 30 minutes have passed since that request. A reminder only, **not** a provider TTL or proof the cache was evicted.              |
 | `…; inactive 5m+ (reported TTL)`                               | `openrouter/meta/muse-spark-1.3-contributor` only: the model's reported five-minute cache TTL has passed. This **doesn't prove** a miss. |
+| `…; inactive 1h+ (Claude Code TTL)`                            | Any `claude-code/*` model: Claude Code's one-hour cache TTL has passed. This **doesn't prove** a miss.                                   |
 
 The percentage applies to **one request**, not the whole session:
 

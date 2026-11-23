@@ -200,6 +200,18 @@ test("Muse Spark 1.3 uses its five-minute TTL only for the exact provider/model 
 	}
 });
 
+test("claude-code provider uses Claude Code's one-hour cache TTL for every model", () => {
+	const observation = getCacheObservation(message(), NOW);
+	assert.ok(observation);
+	for (const modelId of ["claude-opus-5-5", "claude-sonnet-5-5"]) {
+		const policy = getInactivityPolicy("claude-code", modelId);
+		assert.equal(policy.thresholdMs, 60 * 60 * 1000);
+		assert.doesNotMatch(formatCacheStatus(observation, NOW + 60 * 60 * 1000 - 1, policy), /inactive/);
+		assert.match(formatCacheStatus(observation, NOW + 60 * 60 * 1000, policy), /inactive 1h\+ \(Claude Code TTL\)/);
+	}
+	assert.equal(getInactivityPolicy("anthropic", "claude-opus-5-5").thresholdMs, INACTIVITY_THRESHOLD_MS);
+});
+
 test("inactivity is an explicit heuristic with an exact threshold", () => {
 	const observation = getCacheObservation(message(), NOW);
 	assert.ok(observation);

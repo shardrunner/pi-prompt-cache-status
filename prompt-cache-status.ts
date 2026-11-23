@@ -10,8 +10,11 @@ export interface InactivityPolicy {
 
 const defaultPolicy: InactivityPolicy = { thresholdMs: INACTIVITY_THRESHOLD_MS, label: "30m+ (heuristic)" };
 const museSparkPolicy: InactivityPolicy = { thresholdMs: 5 * 60 * 1000, label: "5m+ (reported TTL)" };
+// pi-claude-code drives the Claude Code CLI, which requests a one-hour cache TTL.
+const claudeCodePolicy: InactivityPolicy = { thresholdMs: 60 * 60 * 1000, label: "1h+ (Claude Code TTL)" };
 
 export function getInactivityPolicy(provider: string, model: string): InactivityPolicy {
+	if (provider === "claude-code") return claudeCodePolicy;
 	return provider === "openrouter" && model === "meta/muse-spark-1.3-contributor" ? museSparkPolicy : defaultPolicy;
 }
 
